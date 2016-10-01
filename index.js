@@ -71,12 +71,12 @@ function handleKillerMovement() {
 function gameLoop() {
   requestAnimationFrame(gameLoop);
   handleMovement()
-  //handleKillerMovement()
+  handleKillerMovement()
   renderer.render(stage);
 }
 
-function addCharacter(resources, coords, scale) {
-  var character = new PIXI.Sprite(resources.player.texture);
+function addCharacter(resources, coords, scale, texture) {
+  var character = new PIXI.Sprite(resources[texture].texture);
   character.position.x = coords.x;
   character.position.y = coords.y;
   character.scale.x = scale;
@@ -90,9 +90,13 @@ function addCharacter(resources, coords, scale) {
 
 function init() {
   // load the texture we need
-  Pixi.loader.add('player', 'bunny.png').load(function (loader, resources) {
-    player = addCharacter(resources, constants.playerStartPosition, constants.playerScale);
-    killer = addCharacter(resources, {x: 200, y:200}, constants.playerScale);
+  Pixi.loader
+    .add('player', 'bunny.png')
+    .add('dwight', 'dwight.png')
+    .add('killer', 'trapper.png')
+    .load(function(loader, resources) {
+    player = addCharacter(resources, constants.playerStartPosition, constants.playerScale, 'dwight');
+    killer = addCharacter(resources, {x: 200, y:200}, .8, 'killer');
     gameLoop();
   });
 }

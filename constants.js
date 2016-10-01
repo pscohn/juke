@@ -1,7 +1,7 @@
 export const constants = {
   canvasSize: { x: 800, y: 600 },
   playerStartPosition: { x: 400, y: 300 },
-  playerScale: 2,
+  playerScale: .3,
   playerMoveAmount: 4,
   killerMoveAmount: 2,
 };
