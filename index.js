@@ -1,22 +1,20 @@
-import Pixi from 'pixi.js';
+require('pixi.js');
+require('p2');
+require('phaser');
+
 import { constants, KEYS } from './constants';
 import {
   degreesToRadians,
+  isCollidingX,
+  isColliding,
 } from './utils';
 
-// You can use either `new PIXI.WebGLRenderer`, `new PIXI.CanvasRenderer`, or `PIXI.autoDetectRenderer`
-// which will try to choose the best renderer for the environment you are in.
-var renderer = new Pixi.WebGLRenderer(constants.canvasSize.x, constants.canvasSize.y);
-
-// The renderer will create a canvas element for you that you can then insert into the DOM.
-document.body.appendChild(renderer.view);
-
-// You need to create a root container that will hold the scene you want to draw.
-var stage = new Pixi.Container();
-
-// Declare a global variable for our sprite so that the animate function can access it.
-var player = null;
-var killer = null;
+let cursors;
+let player;
+let killer;
+let currentSpeed;
+let land;
+let rock;
 
 var state = {
   isMovingRight: false,
@@ -25,119 +23,105 @@ var state = {
   isMovingDown: false,
 };
 
+var killerState = {
+  isMovingRight: false,
+  isMovingLeft: false,
+  isMovingUp: false,
+  isMovingDown: false,
+};
+
+var game = new Phaser.Game(800, 600, Phaser.AUTO, '', { preload: preload, create: create, update: update });
+// const wasd = {
+//   up: game.input.keyboard.addKey(Phaser.Keyboard.W),
+//   down: game.input.keyboard.addKey(Phaser.Keyboard.S),
+//   left: game.input.keyboard.addKey(Phaser.Keyboard.A),
+//   right: game.input.keyboard.addKey(Phaser.Keyboard.D),
+// };
+
+function preload() {
+  game.load.image('player', 'bunny.png');
+  game.load.image('dwight', 'dwight.png');
+  game.load.image('killer', 'trapper.png');
+  game.load.image('grass', 'grass.png');
+  game.load.image('earth', 'scorched_earth.png');
+  game.load.image('tank', 'tank.png');
+}
+
+function create() {
+  game.world.setBounds(-1000, -1000, 2000, 2000);
+  land = game.add.tileSprite(0, 0, 800, 600, 'earth');
+  land.fixedToCamera = true;
+//  game.physics.startSystem(Phaser.Physics.ARCADE);
+
+  player = game.add.sprite(0, 0, 'player');
+  player.scale.setTo(2, 2);
+  player.anchor.setTo(0.5, 0.5);
+
+  killer = game.add.sprite(600, 0, 'killer');
+  rock = game.add.sprite(500, 500, 'tank');
+  rock.scale.setTo(3, 3);
+
+  // physics
+  game.physics.enable( [ player, killer, rock ], Phaser.Physics.ARCADE);
+  player.body.collideWorldBounds = true;
+  player.bringToTop();
+  rock.body.immovable = true;
+  rock.body.moves = false;
+
+  // camera
+  game.camera.follow(player);
+  game.camera.deadzone = new Phaser.Rectangle(150, 150, 500, 300);
+  game.camera.focusOnXY(0, 0);
+
+  cursors = game.input.keyboard.createCursorKeys();
+}
+
+function update() {
+  game.physics.arcade.collide(player, killer, collisionHandler, null, this);
+  game.physics.arcade.collide(player, rock, null, null, this);
+  game.physics.arcade.collide(killer, rock, null, null, this);
+  handleMovement()
+  land.tilePosition.x = -game.camera.x;
+  land.tilePosition.y = -game.camera.y;
+}
+
+function collisionHandler (obj1, obj2) {
+  game.stage.backgroundColor = '#992d2d';
+}
+
+
 function handleMovement() {
-  var movementX = 0, movementY = 0;
-  if (state.isMovingRight) {
-    movementX += constants.playerMoveAmount;
-    player.rotation = degreesToRadians(-90);
+  player.body.velocity.x = 0;
+  player.body.velocity.y = 0;
+  killer.body.velocity.x = 0;
+  killer.body.velocity.y = 0;
+  const { playerSpeed, killerSpeed } = constants;
+
+  if (game.input.keyboard.isDown(Phaser.Keyboard.A)) {
+    player.body.velocity.x = -playerSpeed;
   }
-  if (state.isMovingLeft) {
-    movementX -= constants.playerMoveAmount;
-    player.rotation = degreesToRadians(90);
+  if (game.input.keyboard.isDown(Phaser.Keyboard.D)) {
+    player.body.velocity.x = playerSpeed;
   }
-  if (state.isMovingUp) {
-    movementY -= constants.playerMoveAmount;
-    player.rotation = degreesToRadians(180);
+  if (game.input.keyboard.isDown(Phaser.Keyboard.W)) {
+    player.body.velocity.y = -playerSpeed;
   }
-  if (state.isMovingDown) {
-    movementY += constants.playerMoveAmount;
-    player.rotation = 0;
+  if (game.input.keyboard.isDown(Phaser.Keyboard.S)) {
+    player.body.velocity.y = playerSpeed;
   }
-  player.position.x += movementX;
-  player.position.y += movementY;
+  if (cursors.left.isDown) {
+    killer.body.velocity.x = -killerSpeed;
+  }
+  if (cursors.right.isDown) {
+    killer.body.velocity.x = killerSpeed;
+  }
+  if (cursors.up.isDown) {
+    killer.body.velocity.y = -killerSpeed;
+  }
+  if (cursors.down.isDown) {
+    killer.body.velocity.y = killerSpeed;
+  }
 }
 
 function handleKillerMovement() {
-  if (
-    state.isMovingRight == false &&
-    state.isMovingLeft == false &&
-    state.isMovingUp == false &&
-    state.isMovingDown == false
-  ) {
-    return;
-  }
-  if (player.position.x > killer.position.x) {
-    killer.position.x += constants.killerMoveAmount;
-  } else if (player.position.x < killer.position.x) {
-    killer.position.x -= constants.killerMoveAmount;
-  }
-  if (player.position.y > killer.position.y) {
-    killer.position.y += constants.killerMoveAmount;
-  } else if (player.position.y < killer.position.x) {
-    killer.position.y -= constants.killerMoveAmount;
-  }
-}
-
-function gameLoop() {
-  requestAnimationFrame(gameLoop);
-  handleMovement()
-  handleKillerMovement()
-  renderer.render(stage);
-}
-
-function addCharacter(resources, coords, scale, texture) {
-  var character = new PIXI.Sprite(resources[texture].texture);
-  character.position.x = coords.x;
-  character.position.y = coords.y;
-  character.scale.x = scale;
-  character.scale.y = scale;
-  character.anchor.x = 0.5;
-  character.anchor.y = 0.5;
-  stage.addChild(character);
-  return character;
-}
-
-
-function init() {
-  // load the texture we need
-  Pixi.loader
-    .add('player', 'bunny.png')
-    .add('dwight', 'dwight.png')
-    .add('killer', 'trapper.png')
-    .load(function(loader, resources) {
-    player = addCharacter(resources, constants.playerStartPosition, constants.playerScale, 'dwight');
-    killer = addCharacter(resources, {x: 200, y:200}, .8, 'killer');
-    gameLoop();
-  });
-}
-init();
-
-window.onload = function() {
-  window.addEventListener('keydown', function(e) {
-    switch (e.keyCode) {
-    case KEYS.W:
-      state.isMovingUp = true;
-      break;
-    case KEYS.A:
-      state.isMovingLeft = true;
-      break;
-    case KEYS.S:
-      state.isMovingDown = true;
-      break;
-    case KEYS.D:
-      state.isMovingRight = true;
-      break;
-    default:
-      return;
-    }
-  })
-  window.addEventListener('keyup', function(e) {
-    switch (e.keyCode) {
-    case KEYS.W:
-      state.isMovingUp = false;
-      break;
-    case KEYS.A:
-      state.isMovingLeft = false;
-      break;
-    case KEYS.S:
-      state.isMovingDown = false;
-      break;
-    case KEYS.D:
-      state.isMovingRight = false;
-      break;
-    default:
-      return;
-    }
-  })
-
 }
