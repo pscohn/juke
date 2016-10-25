@@ -15,6 +15,9 @@ let killer;
 let currentSpeed;
 let land;
 let rock;
+let killerGroup;
+let weapon;
+let spaceRecentlyPressed = false;
 
 var state = {
   isMovingRight: false,
@@ -45,6 +48,7 @@ function preload() {
   game.load.image('grass', 'grass.png');
   game.load.image('earth', 'scorched_earth.png');
   game.load.image('tank', 'tank.png');
+  game.load.image('stick', 'stick.png');
 }
 
 function create() {
@@ -58,29 +62,54 @@ function create() {
   player.anchor.setTo(0.5, 0.5);
 
   killer = game.add.sprite(600, 0, 'killer');
+  weapon = game.add.sprite(0, 40, 'stick');
   rock = game.add.sprite(500, 500, 'tank');
   rock.scale.setTo(3, 3);
 
+  killer.addChild(weapon);
+  weapon.bringToTop();
+  // killerGroup = game.add.group();
+  // killerGroup.add(killer);
+  // killerGroup.add(weapon);
+
   // physics
-  game.physics.enable( [ player, killer, rock ], Phaser.Physics.ARCADE);
+  game.physics.enable( [ player, killer, rock, weapon ], Phaser.Physics.ARCADE);
   player.body.collideWorldBounds = true;
   player.bringToTop();
   rock.body.immovable = true;
   rock.body.moves = false;
 
-  // camera
+  setupCamera();
+  setupControls();
+
+}
+
+function setupCamera() {
   game.camera.follow(player);
   game.camera.deadzone = new Phaser.Rectangle(150, 150, 500, 300);
   game.camera.focusOnXY(0, 0);
+}
 
+function setupControls() {
   cursors = game.input.keyboard.createCursorKeys();
+  let spaceKey = game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
+  spaceKey.onDown.add(burst);
+
+}
+
+function burst() {
+  spaceRecentlyPressed = true;
+  window.setTimeout(() => {
+    spaceRecentlyPressed = false;
+  }, constants.burstTime);
 }
 
 function update() {
   game.physics.arcade.collide(player, killer, collisionHandler, null, this);
   game.physics.arcade.collide(player, rock, null, null, this);
   game.physics.arcade.collide(killer, rock, null, null, this);
-  handleMovement()
+  handleMovement(player);
+  // handleMovement(killer);
   land.tilePosition.x = -game.camera.x;
   land.tilePosition.y = -game.camera.y;
 }
@@ -90,36 +119,63 @@ function collisionHandler (obj1, obj2) {
 }
 
 
-function handleMovement() {
+function handleMovement(guy) {
   player.body.velocity.x = 0;
   player.body.velocity.y = 0;
   killer.body.velocity.x = 0;
   killer.body.velocity.y = 0;
-  const { playerSpeed, killerSpeed } = constants;
+  weapon.body.velocity.x = 0;
+  weapon.body.velocity.y = 0;
+  const { playerSpeed, killerSpeed, burstAmount } = constants;
+
+  let changeX = 0;
+  let changeY = 0;
+
 
   if (game.input.keyboard.isDown(Phaser.Keyboard.A)) {
-    player.body.velocity.x = -playerSpeed;
+    changeX = -playerSpeed;
   }
   if (game.input.keyboard.isDown(Phaser.Keyboard.D)) {
-    player.body.velocity.x = playerSpeed;
+    changeX = playerSpeed;
   }
   if (game.input.keyboard.isDown(Phaser.Keyboard.W)) {
-    player.body.velocity.y = -playerSpeed;
+    changeY = -playerSpeed;
   }
   if (game.input.keyboard.isDown(Phaser.Keyboard.S)) {
-    player.body.velocity.y = playerSpeed;
+    changeY = playerSpeed;
   }
+
+  if (changeX !== 0 && changeY !== 0) {
+    changeX = changeX / 1.414;
+    changeY = changeY / 1.414;
+  }
+
+  if (spaceRecentlyPressed === true) {
+    if (changeX !== 0) {
+      changeX = changeX * burstAmount;
+    } else if (changeY !== 0) {
+      changeY = changeY * burstAmount;
+    }
+  }
+
+  player.body.velocity.x = changeX;
+  player.body.velocity.y = changeY;
+
   if (cursors.left.isDown) {
     killer.body.velocity.x = -killerSpeed;
+    weapon.body.velocity.x = -(killerSpeed * .01);
   }
   if (cursors.right.isDown) {
     killer.body.velocity.x = killerSpeed;
+    weapon.body.velocity.x = (killerSpeed * .01);
   }
   if (cursors.up.isDown) {
     killer.body.velocity.y = -killerSpeed;
+    weapon.body.velocity.y = -(killerSpeed * .01);
   }
   if (cursors.down.isDown) {
     killer.body.velocity.y = killerSpeed;
+    weapon.body.velocity.y = (killerSpeed * .01);
   }
 }
 

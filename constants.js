@@ -4,6 +4,8 @@ export const constants = {
   playerScale: .3,
   playerSpeed: 300,
   killerSpeed: 300,
+  burstAmount: 2,
+  burstTime: 1000,
 };
 
 export const KEYS = {
